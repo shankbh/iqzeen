@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest frontend --ts --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --yes)",
+      "Bash(npx @nestjs/cli new backend --package-manager npm --skip-git)",
+      "Bash(npm install *)",
+      "Bash(npx prisma *)",
+      "Bash(npx shadcn-ui@latest init -d)",
+      "Bash(dir *)",
+      "Bash(npx shadcn-ui@latest add button input card dialog tabs)",
+      "Bash(npx nest *)",
+      "Bash(npx @nestjs/cli generate module modules/restaurant --project backend)",
+      "Bash(npx @nestjs/cli generate module modules/table --project backend)",
+      "Bash(npx @nestjs/cli generate module modules/menu --project backend)",
+      "Bash(npx @nestjs/cli generate module modules/order --project backend)",
+      "Bash(npx @nestjs/cli generate module modules/auth --project backend)",
+      "Bash(npx shadcn@latest init)",
+      "Bash(npx shadcn@latest add button input card dialog tabs)",
+      "PowerShell(Remove-Item *)"
+    ]
+  }
+}
