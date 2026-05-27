@@ -3,7 +3,7 @@
 import { use, useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
-import { LayoutDashboard, UtensilsCrossed, QrCode, Plus, CheckCircle, Clock, Check, Loader2, Save, Download, Store, Power, Edit2, Trash2, X } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, QrCode, Plus, CheckCircle, Clock, Check, Loader2, Save, Download, Store, Power, Edit2, Trash2, X, BarChart3, History } from 'lucide-react';
 import type { MenuItem } from '@/lib/recommendations';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -25,7 +25,7 @@ export default function OwnerDashboard({ params }: { params: Promise<{ slug: str
   const { slug } = use(params);
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [activeTab, setActiveTab] = useState<'kds' | 'menu' | 'qr'>('kds');
+  const [activeTab, setActiveTab] = useState<'kds' | 'menu' | 'qr' | 'analytics' | 'history'>('kds');
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
@@ -209,6 +209,12 @@ export default function OwnerDashboard({ params }: { params: Promise<{ slug: str
           <button onClick={() => setActiveTab('qr')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'qr' ? 'bg-white/10 text-white shadow-inner border border-white/5' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}>
             <QrCode size={18} className={activeTab === 'qr' ? 'text-amber-400' : ''} /> Tables & QR
           </button>
+          <button onClick={() => setActiveTab('analytics')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'analytics' ? 'bg-white/10 text-white shadow-inner border border-white/5' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}>
+            <BarChart3 size={18} className={activeTab === 'analytics' ? 'text-amber-400' : ''} /> Analytics
+          </button>
+          <button onClick={() => setActiveTab('history')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'history' ? 'bg-white/10 text-white shadow-inner border border-white/5' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}>
+            <History size={18} className={activeTab === 'history' ? 'text-amber-400' : ''} /> Order History
+          </button>
         </div>
 
         <div className="p-4 border-t border-white/5">
@@ -278,6 +284,115 @@ export default function OwnerDashboard({ params }: { params: Promise<{ slug: str
                   ))}
                   {readyOrders.length === 0 && <EmptyColumn msg="Nothing ready yet" />}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ANALYTICS TAB */}
+        {activeTab === 'analytics' && (
+          <div className="p-8 relative z-10">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><BarChart3 className="text-amber-500"/> Business Analytics</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+               <div className="bg-[#151515] p-6 rounded-3xl border border-white/5 shadow-2xl relative overflow-hidden group hover:border-white/10 transition-colors">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full filter blur-[40px] group-hover:bg-amber-500/20 transition-all"></div>
+                 <p className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-2">Total Revenue</p>
+                 <h3 className="text-4xl font-black text-white tracking-tight">₹{orders.reduce((sum, o) => sum + Number(o.totalAmount), 0).toFixed(2)}</h3>
+               </div>
+               
+               <div className="bg-[#151515] p-6 rounded-3xl border border-white/5 shadow-2xl relative overflow-hidden group hover:border-white/10 transition-colors">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full filter blur-[40px] group-hover:bg-orange-500/20 transition-all"></div>
+                 <p className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-2">Total Orders</p>
+                 <h3 className="text-4xl font-black text-white tracking-tight">{orders.length}</h3>
+               </div>
+               
+               <div className="bg-[#151515] p-6 rounded-3xl border border-white/5 shadow-2xl relative overflow-hidden group hover:border-white/10 transition-colors">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full filter blur-[40px] group-hover:bg-rose-500/20 transition-all"></div>
+                 <p className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-2">Avg Order Value</p>
+                 <h3 className="text-4xl font-black text-white tracking-tight">₹{orders.length ? (orders.reduce((sum, o) => sum + Number(o.totalAmount), 0) / orders.length).toFixed(2) : '0.00'}</h3>
+               </div>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-[#151515] p-8 rounded-3xl border border-white/5 shadow-2xl">
+                <h3 className="text-xl font-bold text-white mb-6">Top Selling Items</h3>
+                <div className="space-y-6">
+                  {(() => {
+                    const itemCounts: Record<string, number> = {};
+                    orders.forEach(o => {
+                      o.items?.forEach(i => {
+                        const name = i.menuItem?.name || 'Unknown Item';
+                        itemCounts[name] = (itemCounts[name] || 0) + i.quantity;
+                      });
+                    });
+                    const sorted = Object.entries(itemCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+                    if(sorted.length === 0) return <p className="text-gray-500 italic">No order data available yet.</p>;
+                    
+                    return sorted.map(([name, count], idx) => (
+                      <div key={name} className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 text-amber-500 flex items-center justify-center font-black text-lg border border-amber-500/20 shadow-inner">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between mb-2">
+                            <span className="text-white font-bold">{name}</span>
+                            <span className="text-gray-400 text-sm font-medium">{count} orders</span>
+                          </div>
+                          <div className="w-full bg-white/5 rounded-full h-2 shadow-inner">
+                            <div className="bg-gradient-to-r from-amber-500 to-orange-500 h-2 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" style={{ width: `${(count / sorted[0][1]) * 100}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* HISTORY TAB */}
+        {activeTab === 'history' && (
+          <div className="p-8 relative z-10">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><History className="text-amber-500"/> Order History</h2>
+            <div className="bg-[#151515] rounded-3xl border border-white/5 shadow-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse whitespace-nowrap">
+                  <thead>
+                    <tr className="bg-black/40 border-b border-white/5">
+                      <th className="p-5 text-xs font-black uppercase tracking-widest text-gray-500">Order ID</th>
+                      <th className="p-5 text-xs font-black uppercase tracking-widest text-gray-500">Date & Time</th>
+                      <th className="p-5 text-xs font-black uppercase tracking-widest text-gray-500">Table</th>
+                      <th className="p-5 text-xs font-black uppercase tracking-widest text-gray-500">Total</th>
+                      <th className="p-5 text-xs font-black uppercase tracking-widest text-gray-500">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {orders.length === 0 ? (
+                      <tr><td colSpan={5} className="p-12 text-center text-gray-500 font-medium">No order history available.</td></tr>
+                    ) : (
+                      orders.map(o => (
+                        <tr key={o.id} className="hover:bg-white/5 transition-colors group">
+                          <td className="p-5 text-sm font-bold text-gray-300">#{o.id.slice(-6).toUpperCase()}</td>
+                          <td className="p-5 text-sm font-medium text-gray-400 group-hover:text-gray-300">{new Date(o.createdAt).toLocaleString()}</td>
+                          <td className="p-5 text-sm font-medium text-gray-400 group-hover:text-gray-300">{o.table?.tableNumber || 'N/A'}</td>
+                          <td className="p-5 text-sm font-black text-amber-500">₹{o.totalAmount}</td>
+                          <td className="p-5">
+                            <span className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-inner ${
+                              o.status === 'SERVED' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                              o.status === 'PENDING' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                              o.status === 'COOKING' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                              'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                            }`}>
+                              {o.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
