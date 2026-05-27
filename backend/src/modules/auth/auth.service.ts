@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, HttpException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -12,34 +12,39 @@ export class AuthService {
   ) {}
 
   async adminLogin(email: string, password: string) {
-    // If it's the default admin
-    if (email === 'admin@iqzeen.com' && password === 'admin123') {
-      let adminUser = await this.prisma.user.findUnique({ where: { email } });
-      if (!adminUser) {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        adminUser = await this.prisma.user.create({
-          data: {
-            email,
-            password: hashedPassword,
-            name: 'Super Admin',
-            role: UserRole.SUPER_ADMIN,
-          },
-        });
+    try {
+      // If it's the default admin
+      if (email === 'admin@iqzeen.com' && password === 'admin123') {
+        let adminUser = await this.prisma.user.findUnique({ where: { email } });
+        if (!adminUser) {
+          const hashedPassword = await bcrypt.hash(password, 10);
+          adminUser = await this.prisma.user.create({
+            data: {
+              email,
+              password: hashedPassword,
+              name: 'Super Admin',
+              role: UserRole.SUPER_ADMIN,
+            },
+          });
+        }
+        return this.generateToken(adminUser);
       }
-      return this.generateToken(adminUser);
-    }
 
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user || user.role !== UserRole.SUPER_ADMIN) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+      const user = await this.prisma.user.findUnique({ where: { email } });
+      if (!user || user.role !== UserRole.SUPER_ADMIN) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
 
-    return this.generateToken(user);
+      return this.generateToken(user);
+    } catch (e: any) {
+      if (e instanceof UnauthorizedException) throw e;
+      throw new HttpException(e.message || String(e), 400);
+    }
   }
 
   async restaurantLogin(email: string, password: string) {

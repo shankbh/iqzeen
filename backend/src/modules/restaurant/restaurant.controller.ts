@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Put, Body, Post } from '@nestjs/common';
+import { Controller, Get, Param, Put, Body, Post, HttpException } from '@nestjs/common';
 import { RestaurantService } from './restaurant.service';
 
 @Controller('restaurant')
@@ -6,8 +6,12 @@ export class RestaurantController {
   constructor(private readonly restaurantService: RestaurantService) {}
 
   @Get()
-  findAll() {
-    return this.restaurantService.findAll();
+  async findAll() {
+    try {
+      return await this.restaurantService.findAll();
+    } catch (e: any) {
+      throw new HttpException(e.message || String(e), 400);
+    }
   }
 
   @Get('slug/:slug')
