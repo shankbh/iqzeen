@@ -22,8 +22,12 @@ export class RestaurantService {
   }
 
   async create(data: any) {
-    const { password, ...restaurantData } = data;
-    const restaurant = await this.prisma.restaurant.create({ data: restaurantData });
+    const { password, bankDetails, ...restaurantData } = data;
+    const finalData = { ...restaurantData };
+    if (bankDetails !== undefined) {
+      finalData.bankAccountDetails = bankDetails;
+    }
+    const restaurant = await this.prisma.restaurant.create({ data: finalData });
 
     if (password) {
       const bcrypt = require('bcrypt');
