@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
 import { TableService } from './table.service';
 
 @Controller('table')
@@ -23,5 +23,10 @@ export class TableController {
   @Delete(':id')
   async remove(@Param('id') id: string) {
     return this.tableService.delete(id);
+  }
+
+  @Put(':id')
+  async update(@Param('id') id: string, @Body() data: { tableNumber: string }) {
+    return this.tableService.update(id, data);
   }
 }

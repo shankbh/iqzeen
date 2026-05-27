@@ -3,9 +3,10 @@
 import { use, useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
-import { LayoutDashboard, UtensilsCrossed, QrCode, Plus, CheckCircle, Clock, Check, Loader2, Save, Download, Store, Power } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, QrCode, Plus, CheckCircle, Clock, Check, Loader2, Save, Download, Store, Power, Edit2, Trash2, X } from 'lucide-react';
 import type { MenuItem } from '@/lib/recommendations';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const API = 'http://localhost:3001/api';
 const SOCKET_URL = 'http://localhost:3001';
@@ -33,6 +34,7 @@ export default function OwnerDashboard({ params }: { params: Promise<{ slug: str
   
   // ── Table Manager State ──
   const [newTableNum, setNewTableNum] = useState('');
+  const [editingTable, setEditingTable] = useState<Table | null>(null);
 
   // ── QR Designer State ──
   const [selectedTableQR, setSelectedTableQR] = useState<Table | null>(null);
@@ -42,20 +44,35 @@ export default function OwnerDashboard({ params }: { params: Promise<{ slug: str
 
   const socketRef = useRef<Socket | null>(null);
 
+  const router = useRouter();
+
+  const getHeaders = () => {
+    return {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${localStorage.getItem("restaurant_token")}`
+    };
+  };
+
   // Load Initial Data
   useEffect(() => {
+    const token = localStorage.getItem("restaurant_token");
+    if (!token) {
+      router.push("/dashboard/login");
+      return;
+    }
+
     async function init() {
-      const res = await fetch(`${API}/restaurant`);
+      const res = await fetch(`${API}/restaurant`, { headers: getHeaders() });
       const allRests: Restaurant[] = await res.json();
       const rest = allRests.find(r => r.slug === slug);
       if (!rest) return alert('Restaurant not found');
       setRestaurant(rest);
 
       const [ordRes, tabRes, catRes, itemRes] = await Promise.all([
-        fetch(`${API}/order/restaurant/${rest.id}`),
-        fetch(`${API}/table/restaurant/${rest.id}`),
-        fetch(`${API}/menu/categories/${rest.id}`),
-        fetch(`${API}/menu/restaurant/${rest.id}`)
+        fetch(`${API}/order/restaurant/${rest.id}`, { headers: getHeaders() }),
+        fetch(`${API}/table/restaurant/${rest.id}`, { headers: getHeaders() }),
+        fetch(`${API}/menu/categories/${rest.id}`, { headers: getHeaders() }),
+        fetch(`${API}/menu/restaurant/${rest.id}`, { headers: getHeaders() })
       ]);
       setOrders(await ordRes.json());
       setTables(await tabRes.json());
@@ -85,7 +102,7 @@ export default function OwnerDashboard({ params }: { params: Promise<{ slug: str
   async function updateOrderStatus(orderId: string, status: string) {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: status as any } : o));
     await fetch(`${API}/order/${orderId}/status`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      method: 'PUT', headers: getHeaders(),
       body: JSON.stringify({ status })
     });
   }
@@ -94,12 +111,37 @@ export default function OwnerDashboard({ params }: { params: Promise<{ slug: str
   async function addTable() {
     if (!newTableNum) return;
     const res = await fetch(`${API}/table`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: getHeaders(),
       body: JSON.stringify({ tableNumber: newTableNum, restaurantId: restaurant!.id })
     });
     const nt = await res.json();
     setTables(prev => [...prev, nt]);
     setNewTableNum('');
+  }
+
+  async function updateTable() {
+    if (!newTableNum || !editingTable) return;
+    const res = await fetch(`${API}/table/${editingTable.id}`, {
+      method: 'PUT', headers: getHeaders(),
+      body: JSON.stringify({ tableNumber: newTableNum })
+    });
+    const updated = await res.json();
+    setTables(prev => prev.map(t => t.id === updated.id ? updated : t));
+    if (selectedTableQR?.id === updated.id) setSelectedTableQR(updated);
+    setNewTableNum('');
+    setEditingTable(null);
+  }
+
+  function editTable(t: Table) {
+    setEditingTable(t);
+    setNewTableNum(t.tableNumber);
+  }
+
+  async function deleteTable(id: string) {
+    if(!confirm("Are you sure?")) return;
+    await fetch(`${API}/table/${id}`, { method: 'DELETE', headers: getHeaders() });
+    setTables(prev => prev.filter(t => t.id !== id));
+    if (selectedTableQR?.id === id) setSelectedTableQR(null);
   }
 
   // ── QR Designer Logic ──
@@ -170,9 +212,9 @@ export default function OwnerDashboard({ params }: { params: Promise<{ slug: str
         </div>
 
         <div className="p-4 border-t border-white/5">
-           <Link href="/admin" className="flex items-center gap-3 text-sm text-gray-500 hover:text-white transition-colors p-2">
-             <Power size={16} /> Exit to Admin
-           </Link>
+           <button onClick={() => { localStorage.removeItem("restaurant_token"); router.push("/dashboard/login"); }} className="w-full flex items-center gap-3 text-sm text-gray-500 hover:text-white transition-colors p-2">
+             <Power size={16} /> Logout
+           </button>
         </div>
       </div>
 
@@ -290,23 +332,35 @@ export default function OwnerDashboard({ params }: { params: Promise<{ slug: str
                 <div className="p-5 border-b border-white/5 flex gap-2 bg-[#1A1A1A]">
                   <input 
                     type="text" 
-                    placeholder="New Table No." 
+                    placeholder={editingTable ? "Update Table No." : "New Table No."} 
                     value={newTableNum} 
                     onChange={e => setNewTableNum(e.target.value)}
                     className="flex-1 bg-[#111] border border-white/10 text-white rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none placeholder-gray-600 font-bold"
                   />
-                  <button onClick={addTable} className="bg-amber-500 text-black px-4 rounded-xl hover:bg-amber-400 flex items-center font-bold transition-colors shadow-lg shadow-amber-500/20"><Plus size={18}/></button>
+                  {editingTable ? (
+                    <>
+                      <button onClick={updateTable} className="bg-amber-500 text-black px-4 rounded-xl hover:bg-amber-400 flex items-center font-bold transition-colors shadow-lg shadow-amber-500/20"><Check size={18}/></button>
+                      <button onClick={() => { setEditingTable(null); setNewTableNum(''); }} className="bg-gray-700 text-white px-3 rounded-xl hover:bg-gray-600 flex items-center font-bold transition-colors"><X size={18}/></button>
+                    </>
+                  ) : (
+                    <button onClick={addTable} className="bg-amber-500 text-black px-4 rounded-xl hover:bg-amber-400 flex items-center font-bold transition-colors shadow-lg shadow-amber-500/20"><Plus size={18}/></button>
+                  )}
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
                   {tables.map(t => (
-                    <button 
+                    <div 
                       key={t.id} 
-                      onClick={() => setSelectedTableQR(t)}
                       className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl text-sm font-bold transition-all ${selectedTableQR?.id === t.id ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-[#1A1A1A] text-gray-400 hover:bg-white/5 hover:text-white border border-white/5'}`}
                     >
-                      <span>Table {t.tableNumber}</span>
-                      <QrCode size={16} className={selectedTableQR?.id === t.id ? 'opacity-100' : 'opacity-30'} />
-                    </button>
+                      <button onClick={() => setSelectedTableQR(t)} className="flex-1 text-left flex items-center gap-2">
+                        <QrCode size={16} className={selectedTableQR?.id === t.id ? 'opacity-100' : 'opacity-30'} />
+                        <span>Table {t.tableNumber}</span>
+                      </button>
+                      <div className="flex gap-3">
+                        <button onClick={() => editTable(t)} className="opacity-60 hover:opacity-100"><Edit2 size={14}/></button>
+                        <button onClick={() => deleteTable(t.id)} className="opacity-60 hover:opacity-100 text-red-500 hover:text-red-400"><Trash2 size={14}/></button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

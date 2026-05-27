@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, List, ChefHat, LayoutGrid, Store, Menu, X, Mail, Phone, Briefcase, ExternalLink, Activity } from "lucide-react";
+import { Plus, List, ChefHat, LayoutGrid, Store, Menu, X, Mail, Phone, Briefcase, ExternalLink, Activity, LogOut } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
@@ -17,7 +18,7 @@ export default function AdminPortal() {
 
   // Forms State
   const [restaurantForm, setRestaurantForm] = useState({
-    name: "", email: "", slug: "", phone: "", upiId: "", whatsappNumber: "",
+    name: "", email: "", password: "", slug: "", phone: "", upiId: "", whatsappNumber: "",
     gstNumber: "", fssaiCertificate: "", ownerName: "", bankDetails: ""
   });
   const [categoryForm, setCategoryForm] = useState({ name: "", restaurantId: "", order: 0 });
@@ -26,20 +27,35 @@ export default function AdminPortal() {
     restaurantId: "", categoryId: "", isAvailable: true
   });
 
+  const router = useRouter();
+
+  const getHeaders = () => {
+    return {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${localStorage.getItem("admin_token")}`
+    };
+  };
+
   useEffect(() => {
-    fetchRestaurants();
+    const token = localStorage.getItem("admin_token");
+    if (!token) {
+      router.push("/admin/login");
+    } else {
+      fetchRestaurants();
+    }
   }, [activeTab]);
 
   const fetchRestaurants = async () => {
     try {
-      const res = await fetch(`${API_BASE}/restaurant`);
+      const res = await fetch(`${API_BASE}/restaurant`, { headers: getHeaders() });
       if (res.ok) setRestaurants(await res.json());
+      else if (res.status === 401) router.push("/admin/login");
     } catch (e) { console.error("Error fetching restaurants", e); }
   };
 
   const fetchCategories = async (restaurantId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/menu/categories/${restaurantId}`);
+      const res = await fetch(`${API_BASE}/menu/categories/${restaurantId}`, { headers: getHeaders() });
       if (res.ok) setCategories(await res.json());
     } catch (e) { console.error("Error fetching categories", e); }
   };
@@ -53,7 +69,7 @@ export default function AdminPortal() {
     e.preventDefault();
     try {
       const res = await fetch(`${API_BASE}/restaurant`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: getHeaders(),
         body: JSON.stringify(restaurantForm)
       });
       if (res.ok) {
@@ -68,7 +84,7 @@ export default function AdminPortal() {
     e.preventDefault();
     try {
       const res = await fetch(`${API_BASE}/menu/category`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: getHeaders(),
         body: JSON.stringify({ ...categoryForm, order: Number(categoryForm.order) })
       });
       if (res.ok) {
@@ -83,7 +99,7 @@ export default function AdminPortal() {
     e.preventDefault();
     try {
       const res = await fetch(`${API_BASE}/menu/item`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: getHeaders(),
         body: JSON.stringify({ ...itemForm, price: Number(itemForm.price) })
       });
       if (res.ok) {
@@ -112,11 +128,16 @@ export default function AdminPortal() {
         ${isMobileMenuOpen ? "block" : "hidden"} 
         md:block w-full md:w-64 bg-white border-r border-gray-200 flex-shrink-0 md:h-screen md:sticky md:top-0 shadow-sm z-10
       `}>
-        <div className="hidden md:flex p-6 border-b border-gray-100 items-center gap-3">
-          <div className="bg-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center">
-            <Store className="text-white w-5 h-5" />
+        <div className="hidden md:flex p-6 border-b border-gray-100 items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center">
+              <Store className="text-white w-5 h-5" />
+            </div>
+            <span className="font-bold text-xl text-gray-800">IQZEEN</span>
           </div>
-          <span className="font-bold text-xl text-gray-800">IQZEEN Admin</span>
+          <button onClick={() => { localStorage.removeItem("admin_token"); router.push("/admin/login"); }} className="text-gray-400 hover:text-red-500">
+            <LogOut size={20} />
+          </button>
         </div>
         
         <nav className="p-4 flex flex-col gap-2">
@@ -225,6 +246,10 @@ export default function AdminPortal() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address *</label>
                   <input required type="email" value={restaurantForm.email} onChange={e => setRestaurantForm({...restaurantForm, email: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="admin@shaan.com" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Owner Password *</label>
+                  <input required type="password" value={restaurantForm.password} onChange={e => setRestaurantForm({...restaurantForm, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="••••••••" />
                 </div>
 
                 <div className="col-span-1 md:col-span-2 pt-4 border-t border-gray-100">
