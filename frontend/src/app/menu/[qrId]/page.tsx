@@ -26,8 +26,8 @@ interface PaymentDetails {
 interface GiftNotif { fromTable: string; itemName: string; message: string; }
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
-const API = 'http://localhost:3001/api';
-const SOCKET_URL = 'http://localhost:3001';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://iqzeen.onrender.com/api';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://iqzeen.onrender.com';
 
 const FOOD_IMAGES: Record<string, string> = {
   'spring rolls':        'https://images.unsplash.com/photo-1606755456206-b25206cde27e?w=500&q=80&auto=format&fit=crop',

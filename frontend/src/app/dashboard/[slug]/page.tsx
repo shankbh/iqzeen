@@ -8,8 +8,8 @@ import type { MenuItem } from '@/lib/recommendations';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-const API = 'http://localhost:3001/api';
-const SOCKET_URL = 'http://localhost:3001';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://iqzeen.onrender.com/api';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://iqzeen.onrender.com';
 const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000';
 
 interface Restaurant { id: string; name: string; slug: string; isActive: boolean; }
