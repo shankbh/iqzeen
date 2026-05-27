@@ -74,7 +74,7 @@ export default function AdminPortal() {
       });
       if (res.ok) {
         showSuccess("Restaurant created successfully!");
-        setRestaurantForm({ name: "", email: "", slug: "", phone: "", upiId: "", whatsappNumber: "", gstNumber: "", fssaiCertificate: "", ownerName: "", bankDetails: "" });
+        setRestaurantForm({ name: "", email: "", password: "", slug: "", phone: "", upiId: "", whatsappNumber: "", gstNumber: "", fssaiCertificate: "", ownerName: "", bankDetails: "" });
         setActiveTab("dashboard");
       }
     } catch (e) { console.error(e); }
